@@ -200,13 +200,28 @@ function renderResourceCard(item) {
 
   const actions = $(".resource-actions", card);
 
-  const openBtn = document.createElement("a");
-  openBtn.href = item.url;
-  openBtn.target = "_blank";
-  openBtn.rel = "noopener noreferrer";
-  if (!isLink) openBtn.setAttribute("download", item.nombre);
-  openBtn.innerHTML = `<button class="btn btn-outline">${isLink ? "Abrir" : "Descargar"}</button>`;
-  actions.appendChild(openBtn);
+  if (isLink) {
+    const openBtn = document.createElement("a");
+    openBtn.href = item.url;
+    openBtn.target = "_blank";
+    openBtn.rel = "noopener noreferrer";
+    openBtn.innerHTML = `<button class="btn btn-outline">Abrir</button>`;
+    actions.appendChild(openBtn);
+  } else {
+    // Botón "Ver": muestra el archivo en pantalla sin descargarlo
+    const viewBtn = document.createElement("button");
+    viewBtn.className = "btn btn-solid";
+    viewBtn.textContent = "Ver";
+    viewBtn.addEventListener("click", () => openPreview(item));
+    actions.appendChild(viewBtn);
+
+    // Botón "Descargar": opcional, para quien sí quiera el archivo
+    const dlBtn = document.createElement("a");
+    dlBtn.href = item.url;
+    dlBtn.setAttribute("download", item.nombre);
+    dlBtn.innerHTML = `<button class="btn btn-outline">Descargar</button>`;
+    actions.appendChild(dlBtn);
+  }
 
   if (currentAdmin) {
     const delBtn = document.createElement("button");
@@ -223,6 +238,54 @@ function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
+}
+
+// ------------------------------------------------------------
+// Vista previa de archivos (sin necesidad de descargar)
+// ------------------------------------------------------------
+function openPreview(item) {
+  const ext = (item.extension || "").toLowerCase();
+  const body = $("#preview-body");
+  const tag = $("#preview-tag");
+  const title = $("#preview-title");
+  const download = $("#preview-download");
+
+  title.textContent = item.nombre;
+  download.href = item.url;
+  download.setAttribute("download", item.nombre);
+  body.innerHTML = "";
+
+  if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) {
+    tag.textContent = "IMAGEN";
+    const img = document.createElement("img");
+    img.src = item.url;
+    img.alt = item.nombre;
+    body.appendChild(img);
+
+  } else if (ext === "pdf") {
+    tag.textContent = "PDF";
+    const iframe = document.createElement("iframe");
+    iframe.src = item.url;
+    body.appendChild(iframe);
+
+  } else if (["doc", "docx", "ppt", "pptx", "xls", "xlsx"].includes(ext)) {
+    tag.textContent = "DOCUMENTO";
+    const iframe = document.createElement("iframe");
+    // Visor de Google Docs: permite ver Word/Excel/PowerPoint sin descargar
+    iframe.src = "https://docs.google.com/gview?url=" + encodeURIComponent(item.url) + "&embedded=true";
+    body.appendChild(iframe);
+
+  } else {
+    tag.textContent = "ARCHIVO";
+    body.innerHTML = `<p class="preview-fallback">Este tipo de archivo no tiene vista previa disponible.<br/>Usa el botón "Descargar" para abrirlo.</p>`;
+  }
+
+  $("#preview-modal").classList.remove("hidden");
+}
+
+function closePreview() {
+  $("#preview-modal").classList.add("hidden");
+  $("#preview-body").innerHTML = "";
 }
 
 // ------------------------------------------------------------
@@ -409,6 +472,9 @@ function initUI() {
   $("#login-modal").addEventListener("click", e => { if (e.target.id === "login-modal") closeLoginModal(); });
   $("#login-form").addEventListener("submit", handleLogin);
   $("#btn-logout").addEventListener("click", handleLogout);
+
+  $("#preview-close").addEventListener("click", closePreview);
+  $("#preview-modal").addEventListener("click", e => { if (e.target.id === "preview-modal") closePreview(); });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
